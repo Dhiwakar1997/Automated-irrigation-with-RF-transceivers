@@ -5,7 +5,9 @@
 
 struct package
 {
-  int Moisture_percentage = 0;
+  float Moisture_percentage = 50;
+  float Humidity_percentage = 40;
+  float Temperature = 31;
 };
 
 
@@ -56,16 +58,40 @@ void setup() {
 // LOOP     LOOP     LOOP     LOOP     LOOP     LOOP     LOOP     LOOP     LOOP
 // -----------------------------------------------------------------------------
 void loop() {
+
+  RF_receive();
+
+
+  if (RF_data[0].Moisture_percentage < 20)
+  {
+    while (RF_data[0].Moisture_percentage < 80)
+    {
+
+      digitalWrite(2, LOW);
+      RF_receive();
+    }
+  }
+  else
+  {
+    digitalWrite(2, HIGH);
+  }
+
+}
+
+
+
+int RF_receive() {
   if (radio.available())
 
   {
-    radio.read( &RF_data, sizeof(unsigned long) );
+    radio.read( &RF_data, sizeof(RF_data) );
 
-    Serial.print("received: ");
+    Serial.println("received: ");
 
     Serial.println(RF_data[0].Moisture_percentage);
+    Serial.println(RF_data[0].Humidity_percentage);
+    Serial.println(RF_data[0].Temperature);
   }
-
   radio.startListening();
 
   unsigned long started_waiting_at = millis();
@@ -74,17 +100,10 @@ void loop() {
   {
     if (millis() - started_waiting_at > 200 )
     {
-      delay(500);
+      delay(200);
+      // Serial.println("Waiting...");
       return;
     }
-  }
 
-  if (RF_data[0].Moisture_percentage < 20)
-  {
-    digitalWrite(2, HIGH);
-  }
-  else
-  {
-    digitalWrite(2, LOW);
   }
 }

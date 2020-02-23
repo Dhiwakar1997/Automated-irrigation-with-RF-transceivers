@@ -1,12 +1,23 @@
 #include "Arduino.h"
 #include <SPI.h>
 #include <RF24.h>
+#include "DHT.h"
+
+#define DHTPIN 2
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+
 int sensorPin = A0;
 int Moisture_Analog_value = 0;
 int Moisture_Percentage = 0;
+
+float Humidity, Temperature;
 struct package
 {
-  int x = 0;
+  float Moisture_Percentage = 52;
+  float Humidity = 53;
+  float Temperature = 54;
 };
 typedef struct package Package;
 Package RF_data[30];
@@ -24,6 +35,7 @@ byte addresses[][6] = {"1Node", "2Node"};
 // -----------------------------------------------------------------------------
 void setup() {
   Serial.begin(9600);
+  dht.begin();
   Serial.println("THIS IS THE TRANSMITTER CODE - YOU NEED THE OTHER ARDIUNO TO SEND BACK A RESPONSE");
   pinMode(3, OUTPUT);
   digitalWrite(3, HIGH);
@@ -53,28 +65,50 @@ void setup() {
 // -----------------------------------------------------------------------------
 void loop()
 {
+
+  Moisture_Sense();
+  Humidity_Temperature();
+  RF_send();
+
+
+}
+int Moisture_Sense() {
   Moisture_Analog_value = analogRead(sensorPin);
 
   Moisture_Analog_value = constrain(Moisture_Analog_value, 300, 1005);
 
-  Moisture_Percentage = map(Moisture_Analog_value, 1005, 300, 0, 100);
+  RF_data[0].Moisture_Percentage = map(Moisture_Analog_value, 1005, 300, 0, 100);
 
   Serial.print("Moisture_Percentage=");
 
-  Serial.print(Moisture_Percentage);
+  Serial.print( RF_data[0].Moisture_Percentage);
 
   Serial.println("%");
 
+}
 
-  RF_data[0].x = Moisture_Percentage;
+int Humidity_Temperature()
+{
+   RF_data[0].Humidity = dht.readHumidity();
+   RF_data[0].Temperature = dht.readTemperature();
 
+  Serial.print("Humiditi_Percentage=");
+
+  Serial.print( RF_data[0].Humidity);
+
+  Serial.println("%");
+  Serial.print("Temperature=");
+
+  Serial.println( RF_data[0].Temperature);
+
+}
+
+int RF_send() {
   radio.stopListening();
 
-  if (radio.available() || radio.write( &RF_data, sizeof(unsigned long) ))
+  if (radio.available() || radio.write( &RF_data, sizeof(RF_data) ))
   {
-    Serial.print("Sent: ");
-
-    Serial.println(RF_data[0].x);
+    Serial.print("DATA Sent! ");
   }
 
   radio.startListening();
@@ -83,10 +117,10 @@ void loop()
 
   while ( ! radio.available() )
   {
-    if (millis() - started_waiting_at > 200 )
+    if (millis() - started_waiting_at > 400 )
     {
-      //  Serial.println("No response received - timeout!");
-      delay(500);
+      // Serial.println("No response received - timeout!");
+      delay(200);
 
       return;
     }
